@@ -1,0 +1,79 @@
+:root {
+  --cabinet-bg: #05010f;
+  --cabinet-frame: #1b0a3a;
+  --cabinet-edge: #ffcf00;
+  --screen-bg: #000000;
+  --neon: #ffcf00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% 20%, #1a0840 0%, var(--cabinet-bg) 70%);
+  font-family: "Press Start 2P", "Courier New", monospace;
+  color: var(--neon);
+}
+
+/* Arcade cabinet framing around the screen. */
+.cabinet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(160deg, var(--cabinet-frame), #0a0420);
+  border: 4px solid var(--cabinet-edge);
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 4px #0a0420,
+    0 0 40px rgba(255, 207, 0, 0.35),
+    inset 0 0 30px rgba(0, 0, 0, 0.6);
+}
+
+.cabinet__marquee {
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  letter-spacing: 0.4rem;
+  text-shadow: 0 0 12px rgba(255, 207, 0, 0.8);
+}
+
+.cabinet__screen {
+  padding: 12px;
+  background: var(--screen-bg);
+  border-radius: 10px;
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.9);
+}
+
+/* The display canvas. The low-res back buffer is upscaled with
+   nearest-neighbor sampling so the pixel art stays crisp. */
+#game {
+  display: block;
+  width: 448px;
+  height: 496px;
+  max-width: min(90vw, 448px);
+  height: auto;
+  aspect-ratio: 448 / 496;
+  background: var(--screen-bg);
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.cabinet__hint {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.15rem;
+  opacity: 0.85;
+}
