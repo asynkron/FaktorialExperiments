@@ -156,8 +156,9 @@ function isWallEdge(col, row) {
 
 // Paint the maze walls and the pellet/power-pellet field into the 224x248
 // buffer. `elapsed` (seconds) drives the power-pellet blink; omit it for a
-// static frame.
-export function drawMaze(ctx, elapsed = 0) {
+// static frame. Pass `withPellets = false` to draw walls only — used when a
+// gameplay slice owns a live (mutable) pellet layer and paints the dots itself.
+export function drawMaze(ctx, elapsed = 0, withPellets = true) {
   // Energizers blink ~ every quarter second, lit on the even phase.
   const powerLit = Math.floor(elapsed * 4) % 2 === 0;
 
@@ -183,11 +184,12 @@ export function drawMaze(ctx, elapsed = 0) {
           ctx.fillRect(x, y + TILE_SIZE / 2 - 1, TILE_SIZE, 2);
           break;
         case TILE.PELLET:
+          if (!withPellets) break;
           ctx.fillStyle = COLOR_PELLET;
           ctx.fillRect(x + TILE_SIZE / 2 - 1, y + TILE_SIZE / 2 - 1, 2, 2);
           break;
         case TILE.POWER_PELLET:
-          if (powerLit) {
+          if (withPellets && powerLit) {
             ctx.fillStyle = COLOR_PELLET;
             ctx.beginPath();
             ctx.arc(x + TILE_SIZE / 2, y + TILE_SIZE / 2, 3, 0, Math.PI * 2);
