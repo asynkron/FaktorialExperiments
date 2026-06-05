@@ -8,19 +8,30 @@
   </head>
   <body>
     <main class="app-shell" aria-labelledby="game-title">
-      <section class="game-card">
+      <section class="game-card" aria-describedby="game-status">
         <div class="game-header">
           <div>
-            <p class="eyebrow">FaktorialExperiments</p>
             <h1 id="game-title">Pacman</h1>
           </div>
-          <p class="status" id="game-status">Loading</p>
+          <div class="hud" aria-label="Game status">
+            <p class="hud-item">
+              <span>Score</span>
+              <strong id="score">0</strong>
+            </p>
+            <p class="hud-item">
+              <span>Pellets</span>
+              <strong id="pellets">0</strong>
+            </p>
+            <p class="hud-item">
+              <span>Status</span>
+              <strong id="game-status">Ready</strong>
+            </p>
+          </div>
         </div>
 
-        <div class="game-board" id="game-board" role="img" aria-label="Pacman game scaffold">
-          <div class="maze-line"></div>
-          <div class="pacman-marker" aria-hidden="true"></div>
-          <div class="dot-grid" aria-hidden="true"></div>
+        <div class="game-board" id="game-board" role="application" aria-label="Playable Pacman maze" tabindex="0">
+          <div class="maze-grid" id="maze-grid" aria-hidden="true"></div>
+          <div class="pacman-marker" id="player" aria-hidden="true"></div>
         </div>
       </section>
     </main>
