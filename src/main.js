@@ -8,6 +8,12 @@
 //     clear update(dt) / render() split, so game logic advances deterministically
 //     regardless of the display's refresh rate;
 //   * a minimal game-state machine stub: attract -> playing -> game-over.
+//
+// Batch 2 adds the maze: src/maze.js owns the shared 28x31 tile grid and paints
+// the walls + pellet field into this buffer. The loop and state machine below
+// are unchanged — render() just draws the maze before the state overlays.
+
+import { drawMaze } from "./maze.js";
 
 // --- Resolution -------------------------------------------------------------
 // Native arcade buffer is 28x31 tiles of 8px = 224x248. The display canvas is
@@ -109,6 +115,8 @@ function createGame(displayCanvas) {
 
     switch (game.state) {
       case State.ATTRACT:
+        // Show the board as a backdrop, with the title/prompt overlaid.
+        drawMaze(ctx, game.elapsed);
         drawCenteredText("PAC-MAN", BUFFER_HEIGHT / 2 - 16, "#ffcf00");
         // Blink the prompt roughly twice per second.
         if (Math.floor(game.elapsed * 2) % 2 === 0) {
@@ -116,7 +124,8 @@ function createGame(displayCanvas) {
         }
         break;
       case State.PLAYING:
-        drawCenteredText("PLAYING", BUFFER_HEIGHT / 2, "#ffcf00");
+        // The maze is the play field; gameplay actors arrive in later slices.
+        drawMaze(ctx, game.elapsed);
         break;
       case State.GAME_OVER:
         drawCenteredText("GAME OVER", BUFFER_HEIGHT / 2, "#ff0000");
