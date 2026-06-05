@@ -58,6 +58,7 @@ const messageElement = document.querySelector("#game-message");
 const messageTitleElement = document.querySelector("#message-title");
 const messageCopyElement = document.querySelector("#message-copy");
 const restartButton = document.querySelector("#restart-button");
+const directionButtons = [...document.querySelectorAll("[data-direction]")];
 
 const rows = mazeTemplate.length;
 const columns = mazeTemplate[0].length;
@@ -113,6 +114,9 @@ function initializeGame() {
   boardElement.style.setProperty("--rows", rows);
   resetGame();
   restartButton.addEventListener("click", resetGame);
+  directionButtons.forEach((button) => {
+    button.addEventListener("click", () => queueDirection(button.dataset.direction));
+  });
   document.addEventListener("keydown", handleKeyDown);
   window.addEventListener("resize", updateMarkers);
   requestAnimationFrame(gameLoop);
@@ -388,6 +392,10 @@ function updateMarkers() {
 
   state.ghosts.forEach((ghost) => {
     const ghostElement = ghostLayerElement.querySelector(`[data-ghost-id="${ghost.id}"]`);
+    if (!ghostElement) {
+      return;
+    }
+
     ghostElement.style.transform = getMarkerTransform(ghost.x, ghost.y, tileSize, offset);
   });
 }
@@ -422,12 +430,16 @@ function handleKeyDown(event) {
   }
 
   event.preventDefault();
+  queueDirection(direction);
+}
 
+function queueDirection(direction) {
   if (!isPlaying()) {
     return;
   }
 
   state.nextDirection = direction;
+  updateHud("Queued");
   boardElement.focus({ preventScroll: true });
 }
 
