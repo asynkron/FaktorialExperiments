@@ -88,3 +88,37 @@ Corollaries when editing the board:
   symmetry/counts (every row 28 wide, left/right wall symmetry, exactly 4 power
   pellets, tunnel row open at both edges) are hand-maintained; verify them with a
   quick script at build time rather than trusting visual inspection.
+- **A live, mutable layer derives from the grid; it does not become a second
+  copy.** The pellet/scoring slice (Batch 2, PR #16) needs a *mutable* dot field
+  (dots disappear as they are eaten), but it builds that field by projecting the
+  shared `src/maze.js` grid into a layout (`TILE → char`) and handing it to
+  `createPelletField(layout)` — it does not hard-code its own board. Any
+  placeholder layout a gameplay module exports for standalone testing is a
+  **test default only** (e.g. `createPelletField(layout = MAZE)`); the running app
+  must pass the canonical grid. Note the drift hazard: a frozen placeholder will
+  not track edits to `src/maze.js`, so remove or re-point it at the shared grid
+  once a later batch can guarantee the grid is present.
+  See [[0005-live-pellet-field-and-static-mutable-render-seam]].
+
+## 5. Static-vs-mutable render seam: gate the static renderer, let the live layer own it
+
+When a static frame-renderer and a live, mutable layer would both paint the **same
+visual element** (here: the maze dots — `drawMaze` paints them in the static frame,
+the pellet field paints them during play), do **not** delete the element from the
+static renderer and do **not** let both draw it. Instead give the static renderer a
+flag (`drawMaze(ctx, elapsed, withPellets = true)`) and call it with the element
+**off** in the state where the live layer owns it:
+
+- `withPellets = true` for the ATTRACT/backdrop view → the static renderer shows a
+  complete board.
+- `withPellets = false` during PLAYING → the mutable pellet field draws the dots on
+  top, so eaten ones vanish.
+
+**WHY:** exactly one layer owns the element per state. Deleting it from the static
+renderer breaks the attract/backdrop frame (no dots to show); letting both draw it
+double-paints and makes eaten dots reappear under the static copy. The flag keeps a
+single static renderer reusable across states without forking it.
+
+**Incident:** Batch 2 pellets/scoring (PR #16) — `render()` calls
+`drawMaze(ctx, elapsed)` in ATTRACT and `drawMaze(ctx, elapsed, false)` in PLAYING.
+See [[0005-live-pellet-field-and-static-mutable-render-seam]].
