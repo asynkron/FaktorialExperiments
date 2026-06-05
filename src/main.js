@@ -9,13 +9,30 @@
 //     regardless of the display's refresh rate;
 //   * a minimal game-state machine stub: attract -> playing -> game-over.
 //
-// Batch 2 layers the core gameplay loop on top: eating pellets and power
-// pellets scores points, clearing every pellet wins the round and advances the
-// level, and an on-canvas HUD surfaces score and lives. All of that state lives
-// inside update(dt) so the simulation stays deterministic; render() only reads.
+// Batch 2 brings the maze and the core gameplay loop together. src/maze.js owns
+// the shared 28x31 tile grid and paints the walls into this buffer; the pellet
+// field is derived from that same grid so the live dots stay consistent with the
+// walls. Eating pellets and power pellets scores points, clearing the board wins
+// the round and advances the level, and an on-canvas HUD surfaces score and
+// lives. All of that state lives inside update(dt) so the simulation stays
+// deterministic; render() only reads.
 
+import { grid as mazeGrid, TILE, drawMaze } from "./maze.js";
 import { TILE_SIZE, createPelletField } from "./grid.js";
 import { createPelletSystem } from "./pellets.js";
+
+// Project the shared maze grid (the single source of truth) into the character
+// layout the pellet field consumes, so the live pellets and the walls painted by
+// drawMaze() come from one consistent map.
+const TILE_TO_CHAR = {
+  [TILE.WALL]: "#",
+  [TILE.GHOST_DOOR]: "-",
+  [TILE.PELLET]: ".",
+  [TILE.POWER_PELLET]: "o",
+};
+const MAZE_LAYOUT = mazeGrid.map((row) =>
+  row.map((tile) => TILE_TO_CHAR[tile] ?? " ").join(""),
+);
 
 // --- Resolution -------------------------------------------------------------
 // Native arcade buffer is 28x31 tiles of 8px = 224x248. The display canvas is
@@ -68,7 +85,7 @@ function createGame(displayCanvas) {
 
   // Pellet field (tile grid) and the score/lives/round system built on it. Kept
   // DOM-free in their own modules so all gameplay state stays deterministic.
-  const field = createPelletField();
+  const field = createPelletField(MAZE_LAYOUT);
   const pellets = createPelletSystem(field);
 
   // Placeholder player. col/row is the tile it last entered; dir is the live
@@ -292,6 +309,8 @@ function createGame(displayCanvas) {
 
     switch (game.state) {
       case State.ATTRACT:
+        // Show the board as a backdrop, with the title/prompt overlaid.
+        drawMaze(ctx, game.elapsed);
         drawCenteredText("PAC-MAN", BUFFER_HEIGHT / 2 - 16, "#ffcf00");
         // Blink the prompt roughly twice per second.
         if (Math.floor(game.elapsed * 2) % 2 === 0) {
@@ -299,6 +318,10 @@ function createGame(displayCanvas) {
         }
         break;
       case State.PLAYING:
+        // Maze walls are the play field; the live pellet layer, player, and HUD
+        // draw on top. drawMaze paints walls only here (withPellets=false) — the
+        // mutable pellet field below owns the dots so eaten ones disappear.
+        drawMaze(ctx, game.elapsed, false);
         drawPellets();
         drawPlayer();
         drawHud();
