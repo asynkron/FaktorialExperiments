@@ -12,6 +12,7 @@
         <div class="game-header">
           <div>
             <h1 id="game-title">Pacman</h1>
+            <p class="game-kicker">Static maze run</p>
           </div>
           <div class="hud" aria-label="Game status">
             <p class="hud-item">
@@ -28,12 +29,24 @@
             </p>
             <p class="hud-item">
               <span>Status</span>
-              <strong id="game-status">Ready</strong>
+              <strong id="game-status" role="status" aria-live="polite">Ready</strong>
             </p>
           </div>
         </div>
 
-        <div class="game-board" id="game-board" role="application" aria-label="Playable Pacman maze" tabindex="0">
+        <p class="sr-only" id="keyboard-help">
+          Use arrow keys or W A S D to move. Press R or Enter to restart.
+        </p>
+
+        <div
+          class="game-board"
+          id="game-board"
+          role="application"
+          aria-label="Playable Pacman maze"
+          aria-describedby="keyboard-help game-status"
+          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight W A S D R Enter"
+          tabindex="0"
+        >
           <div class="maze-grid" id="maze-grid" aria-hidden="true"></div>
           <div class="pacman-marker" id="player" aria-hidden="true"></div>
           <div class="ghost-layer" id="ghost-layer" aria-hidden="true"></div>
@@ -43,7 +56,13 @@
           </div>
         </div>
 
-        <div class="controls">
+        <div class="controls" aria-label="Game controls">
+          <div class="direction-pad" aria-label="Movement controls">
+            <button type="button" class="direction-button up" data-direction="up" aria-label="Move up">Up</button>
+            <button type="button" class="direction-button left" data-direction="left" aria-label="Move left">Left</button>
+            <button type="button" class="direction-button down" data-direction="down" aria-label="Move down">Down</button>
+            <button type="button" class="direction-button right" data-direction="right" aria-label="Move right">Right</button>
+          </div>
           <button type="button" id="restart-button">Restart</button>
         </div>
       </section>
