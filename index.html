@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pacman Experiment</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell" aria-labelledby="game-title">
+      <section class="game-card">
+        <div class="game-header">
+          <div>
+            <p class="eyebrow">FaktorialExperiments</p>
+            <h1 id="game-title">Pacman</h1>
+          </div>
+          <p class="status" id="game-status">Loading</p>
+        </div>
+
+        <div class="game-board" id="game-board" role="img" aria-label="Pacman game scaffold">
+          <div class="maze-line"></div>
+          <div class="pacman-marker" aria-hidden="true"></div>
+          <div class="dot-grid" aria-hidden="true"></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
