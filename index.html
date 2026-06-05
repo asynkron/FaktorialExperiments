@@ -23,6 +23,10 @@
               <strong id="pellets">0</strong>
             </p>
             <p class="hud-item">
+              <span>Lives</span>
+              <strong id="lives">3</strong>
+            </p>
+            <p class="hud-item">
               <span>Status</span>
               <strong id="game-status">Ready</strong>
             </p>
@@ -32,6 +36,15 @@
         <div class="game-board" id="game-board" role="application" aria-label="Playable Pacman maze" tabindex="0">
           <div class="maze-grid" id="maze-grid" aria-hidden="true"></div>
           <div class="pacman-marker" id="player" aria-hidden="true"></div>
+          <div class="ghost-layer" id="ghost-layer" aria-hidden="true"></div>
+          <div class="game-message" id="game-message" hidden>
+            <strong id="message-title"></strong>
+            <span id="message-copy"></span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button type="button" id="restart-button">Restart</button>
         </div>
       </section>
     </main>

@@ -40,27 +40,47 @@ const keyToDirection = {
   KeyD: "right",
 };
 
+const initialGhosts = [
+  { id: "blinky", name: "Blinky", x: 9, y: 10, direction: "left", color: "red" },
+  { id: "pinky", name: "Pinky", x: 10, y: 10, direction: "right", color: "pink" },
+  { id: "inky", name: "Inky", x: 9, y: 11, direction: "up", color: "cyan" },
+];
+
 const boardElement = document.querySelector("#game-board");
 const gridElement = document.querySelector("#maze-grid");
 const playerElement = document.querySelector("#player");
+const ghostLayerElement = document.querySelector("#ghost-layer");
 const scoreElement = document.querySelector("#score");
 const pelletsElement = document.querySelector("#pellets");
+const livesElement = document.querySelector("#lives");
 const statusElement = document.querySelector("#game-status");
+const messageElement = document.querySelector("#game-message");
+const messageTitleElement = document.querySelector("#message-title");
+const messageCopyElement = document.querySelector("#message-copy");
+const restartButton = document.querySelector("#restart-button");
 
 const rows = mazeTemplate.length;
 const columns = mazeTemplate[0].length;
-const grid = mazeTemplate.map((row) => [...row]);
 const state = {
   score: 0,
   totalPellets: 0,
   remainingPellets: 0,
   position: { x: 1, y: 1 },
+  spawnPosition: { x: 1, y: 1 },
   direction: null,
   nextDirection: null,
   lastStepTime: 0,
   stepDuration: 125,
+  ghostStepDuration: 250,
+  ghostStepCounter: 0,
+  ghosts: [],
+  lives: 3,
   won: false,
+  lost: false,
+  pausedUntil: 0,
 };
+
+let grid = [];
 
 function assertMazeShape() {
   const invalidRow = mazeTemplate.find((row) => row.length !== columns);
@@ -71,19 +91,53 @@ function assertMazeShape() {
 }
 
 function initializeGame() {
-  if (!boardElement || !gridElement || !playerElement || !scoreElement || !pelletsElement || !statusElement) {
+  if (
+    !boardElement ||
+    !gridElement ||
+    !playerElement ||
+    !ghostLayerElement ||
+    !scoreElement ||
+    !pelletsElement ||
+    !livesElement ||
+    !statusElement ||
+    !messageElement ||
+    !messageTitleElement ||
+    !messageCopyElement ||
+    !restartButton
+  ) {
     return;
   }
 
   assertMazeShape();
   boardElement.style.setProperty("--columns", columns);
   boardElement.style.setProperty("--rows", rows);
+  resetGame();
+  restartButton.addEventListener("click", resetGame);
+  document.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("resize", updateMarkers);
+  requestAnimationFrame(gameLoop);
+}
+
+function resetGame() {
+  grid = mazeTemplate.map((row) => [...row]);
+  state.score = 0;
+  state.totalPellets = 0;
+  state.remainingPellets = 0;
+  state.direction = null;
+  state.nextDirection = null;
+  state.lastStepTime = 0;
+  state.ghostStepCounter = 0;
+  state.lives = 3;
+  state.won = false;
+  state.lost = false;
+  state.pausedUntil = 0;
+  state.ghosts = initialGhosts.map((ghost) => ({ ...ghost }));
   renderMaze();
   collectPelletAt(state.position);
   updateHud();
-  updatePlayer();
+  updateMarkers();
+  hideMessage();
   boardElement.focus({ preventScroll: true });
-  requestAnimationFrame(gameLoop);
 }
 
 function renderMaze() {
@@ -101,6 +155,7 @@ function renderMaze() {
       } else {
         if (cell === "P") {
           state.position = { x, y };
+          state.spawnPosition = { x, y };
           grid[y][x] = " ";
         }
 
@@ -116,6 +171,21 @@ function renderMaze() {
 
   state.remainingPellets = state.totalPellets;
   gridElement.replaceChildren(fragment);
+  renderGhosts();
+}
+
+function renderGhosts() {
+  const fragment = document.createDocumentFragment();
+
+  state.ghosts.forEach((ghost) => {
+    const marker = document.createElement("div");
+    marker.className = `ghost-marker ${ghost.color}`;
+    marker.dataset.ghostId = ghost.id;
+    marker.title = ghost.name;
+    fragment.append(marker);
+  });
+
+  ghostLayerElement.replaceChildren(fragment);
 }
 
 function gameLoop(timestamp) {
@@ -123,8 +193,16 @@ function gameLoop(timestamp) {
     state.lastStepTime = timestamp;
   }
 
-  if (!state.won && timestamp - state.lastStepTime >= state.stepDuration) {
+  if (isPlaying() && timestamp >= state.pausedUntil && timestamp - state.lastStepTime >= state.stepDuration) {
     stepPlayer();
+    state.ghostStepCounter += state.stepDuration;
+
+    if (state.ghostStepCounter >= state.ghostStepDuration) {
+      stepGhosts();
+      state.ghostStepCounter = 0;
+    }
+
+    checkGhostCollision();
     state.lastStepTime = timestamp;
   }
 
@@ -136,11 +214,11 @@ function stepPlayer() {
     return;
   }
 
-  if (canMove(state.nextDirection)) {
+  if (canMove(state.nextDirection, state.position)) {
     state.direction = state.nextDirection;
   }
 
-  if (!canMove(state.direction)) {
+  if (!canMove(state.direction, state.position)) {
     statusElement.textContent = "Blocked";
     return;
   }
@@ -153,17 +231,73 @@ function stepPlayer() {
 
   collectPelletAt(state.position);
   updateHud();
-  updatePlayer();
+  updateMarkers();
 }
 
-function canMove(direction) {
+function stepGhosts() {
+  state.ghosts.forEach((ghost, index) => {
+    const options = getGhostDirections(ghost);
+
+    if (options.length === 0) {
+      return;
+    }
+
+    const current = options.find((direction) => direction === ghost.direction);
+    const reverse = getOppositeDirection(ghost.direction);
+    const orderedOptions = current ? [current, ...options.filter((direction) => direction !== current)] : options;
+    const forwardOptions = orderedOptions.filter((direction) => direction !== reverse);
+    const directionPool = forwardOptions.length > 0 ? forwardOptions : options;
+    const nextDirection = chooseGhostDirection(ghost, directionPool, index);
+    const vector = directionVectors[nextDirection];
+
+    ghost.direction = nextDirection;
+    ghost.x += vector.x;
+    ghost.y += vector.y;
+  });
+
+  updateMarkers();
+}
+
+function getGhostDirections(ghost) {
+  return Object.keys(directionVectors).filter((direction) => canMove(direction, ghost));
+}
+
+function chooseGhostDirection(ghost, directions, index) {
+  const ranked = directions
+    .map((direction) => {
+      const vector = directionVectors[direction];
+      const nextX = ghost.x + vector.x;
+      const nextY = ghost.y + vector.y;
+      const distance = Math.abs(state.position.x - nextX) + Math.abs(state.position.y - nextY);
+
+      return { direction, distance };
+    })
+    .sort((left, right) => left.distance - right.distance);
+
+  if (index === 0) {
+    return ranked[0].direction;
+  }
+
+  const deterministicOffset = (state.score / 10 + state.remainingPellets + index) % ranked.length;
+  return ranked[deterministicOffset].direction;
+}
+
+function getOppositeDirection(direction) {
+  if (direction === "up") return "down";
+  if (direction === "down") return "up";
+  if (direction === "left") return "right";
+  if (direction === "right") return "left";
+  return null;
+}
+
+function canMove(direction, position) {
   if (!direction) {
     return false;
   }
 
   const vector = directionVectors[direction];
-  const nextX = state.position.x + vector.x;
-  const nextY = state.position.y + vector.y;
+  const nextX = position.x + vector.x;
+  const nextY = position.y + vector.y;
   const nextCell = grid[nextY]?.[nextX];
 
   return Boolean(nextCell) && nextCell !== "#";
@@ -182,30 +316,105 @@ function collectPelletAt(position) {
 
   if (state.remainingPellets === 0) {
     state.won = true;
-    statusElement.textContent = "Clear";
+    state.direction = null;
+    state.nextDirection = null;
+    updateHud();
+    showMessage("Maze clear", "All pellets collected. Press restart or R to play again.");
   }
 }
 
-function updateHud() {
+function checkGhostCollision() {
+  if (!isPlaying()) {
+    return;
+  }
+
+  const hitGhost = state.ghosts.find((ghost) => ghost.x === state.position.x && ghost.y === state.position.y);
+
+  if (!hitGhost) {
+    return;
+  }
+
+  state.lives -= 1;
+
+  if (state.lives <= 0) {
+    state.lost = true;
+    state.direction = null;
+    state.nextDirection = null;
+    updateHud();
+    showMessage("Game over", `${hitGhost.name} caught you. Press restart or R to try again.`);
+    return;
+  }
+
+  resetRound(`Caught by ${hitGhost.name}`);
+}
+
+function resetRound(status) {
+  state.position = { ...state.spawnPosition };
+  state.direction = null;
+  state.nextDirection = null;
+  state.ghosts = initialGhosts.map((ghost) => ({ ...ghost }));
+  state.pausedUntil = performance.now() + 700;
+  state.lastStepTime = 0;
+  updateHud(status);
+  updateMarkers();
+}
+
+function isPlaying() {
+  return !state.won && !state.lost;
+}
+
+function updateHud(status = "") {
   scoreElement.textContent = String(state.score);
   pelletsElement.textContent = String(state.remainingPellets);
+  livesElement.textContent = String(state.lives);
 
-  if (!state.won) {
+  if (status) {
+    statusElement.textContent = status;
+  } else if (state.lost) {
+    statusElement.textContent = "Game over";
+  } else if (state.won) {
+    statusElement.textContent = "Clear";
+  } else {
     statusElement.textContent = state.direction ? "Moving" : "Ready";
   }
 }
 
-function updatePlayer() {
+function updateMarkers() {
   const tileSize = boardElement.clientWidth / columns;
   const offset = tileSize * 0.08;
-  const x = state.position.x * tileSize + offset;
-  const y = state.position.y * tileSize + offset;
 
   playerElement.className = `pacman-marker ${state.direction ?? "right"}`;
-  playerElement.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  playerElement.style.transform = getMarkerTransform(state.position.x, state.position.y, tileSize, offset);
+
+  state.ghosts.forEach((ghost) => {
+    const ghostElement = ghostLayerElement.querySelector(`[data-ghost-id="${ghost.id}"]`);
+    ghostElement.style.transform = getMarkerTransform(ghost.x, ghost.y, tileSize, offset);
+  });
 }
 
-window.addEventListener("keydown", (event) => {
+function getMarkerTransform(x, y, tileSize, offset) {
+  return `translate3d(${x * tileSize + offset}px, ${y * tileSize + offset}px, 0)`;
+}
+
+function showMessage(title, copy) {
+  messageTitleElement.textContent = title;
+  messageCopyElement.textContent = copy;
+  messageElement.hidden = false;
+}
+
+function hideMessage() {
+  messageElement.hidden = true;
+  messageTitleElement.textContent = "";
+  messageCopyElement.textContent = "";
+}
+
+function handleKeyDown(event) {
+  if (event.code === "KeyR" || event.code === "Enter") {
+    event.preventDefault();
+    resetGame();
+    return;
+  }
+
   const direction = keyToDirection[event.code];
 
   if (!direction) {
@@ -213,10 +422,13 @@ window.addEventListener("keydown", (event) => {
   }
 
   event.preventDefault();
+
+  if (!isPlaying()) {
+    return;
+  }
+
   state.nextDirection = direction;
   boardElement.focus({ preventScroll: true });
-});
-
-window.addEventListener("resize", updatePlayer);
+}
 
 initializeGame();
