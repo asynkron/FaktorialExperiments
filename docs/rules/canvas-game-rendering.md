@@ -50,3 +50,41 @@ The back buffer is 224×248 (native arcade res); the display canvas is 448×496
 (exactly 2×). **WHY:** integer scaling keeps every source pixel mapped to an
 equal block of destination pixels, so nearest-neighbor upscaling has no uneven
 "fat pixel" artifacts. Pick integer multiples for any future resolution change.
+
+## 4. The maze grid is the single source of truth — import it, don't re-derive it
+
+The board lives once, in `src/maze.js`: a character `LAYOUT` parsed into a frozen
+`grid` of typed `TILE` codes, exported alongside `tileAt` / `isWall` / `wrapX`.
+Any slice that needs to know where walls, pellets, or tunnels are (rendering,
+player movement, ghost AI, pellet scoring) **imports this module** — it never
+hard-codes coordinates or keeps a private copy of the layout.
+
+**WHY:** the `gh12` plan builds gameplay as parallel slices that must agree on the
+same map. A second copy of the layout drifts from the first, so a wall the
+renderer draws stops matching a wall the collision code blocks against. One parsed
+grid keeps render and simulation provably consistent. **Incident:** Batch 2 maze
+rendering (PR #15) — `src/maze.js` was deliberately exported as the shared board
+so the parallel movement/scoring slices consume it. See
+[[0004-maze-typed-tile-grid-shared-source-of-truth]].
+
+Corollaries when editing the board:
+
+- **Author by character, consume by `TILE` enum.** Switch on `TILE.WALL`, not on
+  the raw `"#"` — the character layout is an authoring convenience, not the API.
+- **Keep grid queries total.** `tileAt` treats out-of-vertical-range as `WALL` and
+  wraps horizontally via `wrapX`; off-edge reads must stay defined so actor logic
+  at the tunnel mouths and board border needs no special-casing. Don't index
+  `grid[row][col]` raw in movement code — go through `tileAt`/`isWall`.
+- **Tunnels are data + a pure wrap.** A horizontal wrap is `wrapX(col)`
+  (`((col % COLS) + COLS) % COLS`), correct for any integer, not an `if (col < 0)`
+  special case. Tunnel tiles are tagged at parse time so movement can detect a
+  wrap is in play.
+- **Walls render edge-only.** Fill a wall cell only when an orthogonal neighbour
+  is non-wall (`isWallEdge`); interiors of thick blocks stay black. This is what
+  produces the thin-blue-outline look from the grid — don't "simplify" it into
+  filling every wall tile (you get solid blue slabs) or maintain separate outline
+  geometry (it drifts from the grid).
+- **Guard board invariants with deterministic checks, not types.** The layout's
+  symmetry/counts (every row 28 wide, left/right wall symmetry, exactly 4 power
+  pellets, tunnel row open at both edges) are hand-maintained; verify them with a
+  quick script at build time rather than trusting visual inspection.
