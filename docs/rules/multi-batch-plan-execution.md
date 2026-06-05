@@ -37,3 +37,31 @@ unmerged, batches.
 - Prefer extending the dependency's exported API over duplicating its data/logic,
   so the batches stay one source of truth (see
   [[0004-maze-typed-tile-grid-shared-source-of-truth]]).
+
+## 2. A placeholder for an unmerged sibling is reconciliation debt — flag it, don't leave it silent
+
+When your slice needs a resource another *parallel, not-yet-merged* sibling owns
+(not a completed dependency, but a sibling landing concurrently), it is fine to
+ship a **placeholder behind a narrow, swappable interface** so your slice is
+buildable and testable now. But that placeholder is debt: once both slices land on
+`main`, the tree holds two copies of the same thing.
+
+**WHY:** parallel `gh12` slices land out of order, so a slice cannot always import
+its sibling's not-yet-existing module at author time. A placeholder unblocks it —
+but if the placeholder is left as a live default, it silently becomes the "second
+source of truth" that [[0004-maze-typed-tile-grid-shared-source-of-truth]] warns
+against, and drifts the moment the real source is edited.
+
+**Incident:** `planitem-gh12` Batch 2 pellets (PR #16). `src/grid.js` exports a
+placeholder `MAZE`; the build correctly wired the *running app* to project the
+canonical `src/maze.js` grid into the pellet field instead, leaving the placeholder
+as a test-only default. The residual duplicate is recorded as a follow-up in
+[[0005-live-pellet-field-and-static-mutable-render-seam]], not left implicit.
+
+**How to apply:**
+
+- Make the placeholder a non-default seam where possible: the app passes the real
+  resource; the placeholder is only the standalone/unit-test fallback.
+- Record the swap-back as explicit follow-up (ADR consequence, TODO, or a new
+  issue) so a later batch removes the duplicate once the real source is guaranteed
+  present. A silent placeholder reads as "done" when it is actually pending.
