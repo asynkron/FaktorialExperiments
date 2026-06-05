@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pac-Man</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="cabinet">
+      <div class="cabinet__marquee">PAC-MAN</div>
+      <div class="cabinet__screen">
+        <!-- Single display canvas. The low-res back buffer is created in JS and
+             blitted here with nearest-neighbor upscaling for crisp pixel art. -->
+        <canvas id="game" width="448" height="496" aria-label="Pac-Man game"></canvas>
+      </div>
+      <p class="cabinet__hint">Press Enter or click to play</p>
+    </main>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
